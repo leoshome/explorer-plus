@@ -1,6 +1,13 @@
 # Explorer Plus
 
-Explorer Plus is a Visual Studio Code Extension Displays file sizes, created and modified dates as a seperate view.  
+Explorer Plus is a Visual Studio Code Extension Displays file sizes, created and modified dates as a seperate view.
+A proof of concept for vscode team: https://github.com/microsoft/vscode/issues/164033#issuecomment-3067247222
+
+## Motivation
+
+Github threads: https://github.com/microsoft/vscode/issues/164033, https://github.com/microsoft/vscode/issues/124115
+Stackoverflow: https://stackoverflow.com/questions/63381524/show-last-date-modified-in-vs-code, 
+Reddit: https://www.reddit.com/r/vscode/comments/1dbs1xu/show_file_size_and_date_modified_in_file_explorer/
 
 ## Example
 
