@@ -16,6 +16,92 @@
   ],
   "main": "./extension.js",
   "contributes": {
+    "configuration": {
+      "title": "Explorer+",
+      "properties": {
+        "explorerPlus.showSize": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show file/folder size column"
+        },
+        "explorerPlus.showDateCreated": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show date created column"
+        },
+        "explorerPlus.showDateModified": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show date modified column"
+        }
+      }
+    },
+"commands": [
+      {
+        "command": "explorerPlus.hideSize",
+        "title": "✓ Size",
+        "category": "Explorer+"
+      },
+      {
+        "command": "explorerPlus.showSize",
+        "title": "Size",
+        "category": "Explorer+"
+      },
+      {
+        "command": "explorerPlus.hideDateCreated",
+        "title": "✓ Created",
+        "category": "Explorer+"
+      },
+      {
+        "command": "explorerPlus.showDateCreated",
+        "title": "Created",
+        "category": "Explorer+"
+      },
+      {
+        "command": "explorerPlus.hideDateModified",
+        "title": "✓ Modified",
+        "category": "Explorer+"
+      },
+      {
+        "command": "explorerPlus.showDateModified",
+        "title": "Modified",
+        "category": "Explorer+"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "explorerPlus.hideSize",
+          "when": "view == fileExplorerView && explorerPlus.showSize",
+          "group": "1_settings@1"
+        },
+        {
+          "command": "explorerPlus.showSize",
+          "when": "view == fileExplorerView && !explorerPlus.showSize",
+          "group": "1_settings@1"
+        },
+        {
+          "command": "explorerPlus.hideDateCreated",
+          "when": "view == fileExplorerView && explorerPlus.showDateCreated",
+          "group": "1_settings@2"
+        },
+        {
+          "command": "explorerPlus.showDateCreated",
+          "when": "view == fileExplorerView && !explorerPlus.showDateCreated",
+          "group": "1_settings@2"
+        },
+        {
+          "command": "explorerPlus.hideDateModified",
+          "when": "view == fileExplorerView && explorerPlus.showDateModified",
+          "group": "1_settings@3"
+        },
+        {
+          "command": "explorerPlus.showDateModified",
+          "when": "view == fileExplorerView && !explorerPlus.showDateModified",
+          "group": "1_settings@3"
+        }
+      ]
+    },
     "viewsContainers": {
       "activitybar": [
         {

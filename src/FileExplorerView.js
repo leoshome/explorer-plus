@@ -1,6 +1,16 @@
 const vscode = require('vscode');
 const path = require('path');
-const { getFolderSizeSync, formatSize, formatDate } = require('./utils/fileUtils'); // Path updated
+const { getFolderSizeSync, formatSize, formatDate } = require('./utils/fileUtils');
+
+// Get column visibility settings
+function getColumnSettings() {
+    const config = vscode.workspace.getConfiguration('explorerPlus');
+    return {
+        showSize: config.get('showSize', true),
+        showDateCreated: config.get('showDateCreated', true),
+        showDateModified: config.get('showDateModified', true)
+    };
+}
 
 class FileExplorerViewProvider {
     /**
@@ -18,6 +28,33 @@ class FileExplorerViewProvider {
         if (workspaceFolders && workspaceFolders.length > 0) {
             this.root = workspaceFolders[0].uri.fsPath;
         }
+
+        // Initialize context keys for view/title commands
+        this._updateContextKeys();
+    }
+
+    /**
+     * Update VS Code context keys based on current settings.
+     * @private
+     */
+    _updateContextKeys() {
+        const config = vscode.workspace.getConfiguration('explorerPlus');
+        vscode.commands.executeCommand('setContext', 'explorerPlus.showSize', config.get('showSize', true));
+        vscode.commands.executeCommand('setContext', 'explorerPlus.showDateCreated', config.get('showDateCreated', true));
+        vscode.commands.executeCommand('setContext', 'explorerPlus.showDateModified', config.get('showDateModified', true));
+    }
+
+    /**
+     * Set a column's visibility.
+     * @param {string} key The configuration key (e.g. 'showSize').
+     * @param {boolean} visible Whether the column should be visible.
+     * @private
+     */
+    _setColumnVisibility(key, visible) {
+        const config = vscode.workspace.getConfiguration('explorerPlus');
+        config.update(key, visible, vscode.ConfigurationTarget.Global);
+        this._updateContextKeys();
+        this._render();
     }
 
     /**
@@ -36,6 +73,26 @@ class FileExplorerViewProvider {
             ]
         };
         this._render(); // Initial render of the webview
+
+        // Register toggle commands
+        this.context.subscriptions.push(
+            vscode.commands.registerCommand('explorerPlus.hideSize', () => this._setColumnVisibility('showSize', false)),
+            vscode.commands.registerCommand('explorerPlus.showSize', () => this._setColumnVisibility('showSize', true)),
+            vscode.commands.registerCommand('explorerPlus.hideDateCreated', () => this._setColumnVisibility('showDateCreated', false)),
+            vscode.commands.registerCommand('explorerPlus.showDateCreated', () => this._setColumnVisibility('showDateCreated', true)),
+            vscode.commands.registerCommand('explorerPlus.hideDateModified', () => this._setColumnVisibility('showDateModified', false)),
+            vscode.commands.registerCommand('explorerPlus.showDateModified', () => this._setColumnVisibility('showDateModified', true))
+        );
+
+        // Listen for configuration changes
+        this.context.subscriptions.push(
+            vscode.workspace.onDidChangeConfiguration(e => {
+                if (e.affectsConfiguration('explorerPlus')) {
+                    this._updateContextKeys();
+                    this._render();
+                }
+            })
+        );
 
         // Handle messages received from the webview
         webviewView.webview.onDidReceiveMessage(async msg => {
@@ -107,6 +164,9 @@ class FileExplorerViewProvider {
             return;
         }
 
+        // Get column visibility settings
+        const columns = getColumnSettings();
+
         const rootPath = this.root || workspaceFolders[0].uri.fsPath;
         let entries = [];
         try {
@@ -172,15 +232,15 @@ class FileExplorerViewProvider {
         });
 
         // Generate HTML for table rows
-        const rows = filtered.map(e => `
+        const rowsHtml = filtered.map(e => `
             <tr data-path="${e.path}" class="row ${e.isDir ? 'folder-row' : 'file-row'}" style="cursor:pointer;">
                 <td style="width:28px;text-align:center;">
                     <span class="mdi ${e.isDir ? 'mdi-folder' : 'mdi-file-outline'}"></span>
                 </td>
                 <td>${e.name}</td>
-                <td style="text-align:right;">${e.size ? formatSize(e.size) : '-'}</td>
-                <td>${e.ctime ? formatDate(e.ctime) : ''}</td>
-                <td>${e.mtime ? formatDate(e.mtime) : ''}</td>
+                ${columns.showSize ? `<td style="text-align:right;">${e.size ? formatSize(e.size) : '-'}</td>` : ''}
+                ${columns.showDateCreated ? `<td>${e.ctime ? formatDate(e.ctime) : ''}</td>` : ''}
+                ${columns.showDateModified ? `<td>${e.mtime ? formatDate(e.mtime) : ''}</td>` : ''}
             </tr>
         `).join('');
 
@@ -189,21 +249,28 @@ class FileExplorerViewProvider {
         // Check if current path is different from workspace root and not a filesystem root itself
         const showUp = this.root && this.root !== workspaceRoot && path.dirname(this.root) !== this.root;
 
-        this.webviewView.webview.html = this._getWebviewContent(rootPath, showUp, rows);
+        this.webviewView.webview.html = this._getWebviewContent(rootPath, showUp, rowsHtml, columns);
     }
 
     /**
      * Generates the full HTML content for the webview.
      * @param {string} rootPath The current directory path being displayed.
      * @param {boolean} showUp Whether to show the "Up" button.
-     * @param {string} rows The HTML string for the table rows.
+     * @param {string} rowsHtml The HTML string for the table rows.
+     * @param {object} columns Column visibility settings.
      * @returns {string} The complete HTML content.
      * @private
      */
-    _getWebviewContent(rootPath, showUp, rows) {
+    _getWebviewContent(rootPath, showUp, rowsHtml, columns) {
         // Get URIs for webview resources
         const scriptUri = this.webviewView.webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'src', 'webview', 'webview.js'));
         const styleUri = this.webviewView.webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'src', 'webview', 'webview.css'));
+
+        // Count visible columns for colspan
+        let colCount = 2; // icon + name
+        if (columns.showSize) colCount++;
+        if (columns.showDateCreated) colCount++;
+        if (columns.showDateModified) colCount++;
 
         return `
             <!DOCTYPE html>
@@ -230,13 +297,13 @@ class FileExplorerViewProvider {
                             <tr>
                                 <th></th>
                                 <th id="sort-name">Name ${this.sortBy === 'name' ? (this.sortDir === 1 ? '▲' : '▼') : ''}</th>
-                                <th style="text-align:right;" id="sort-size">Size ${this.sortBy === 'size' ? (this.sortDir === 1 ? '▲' : '▼') : ''}</th>
-                                <th id="sort-ctime">Created ${this.sortBy === 'ctime' ? (this.sortDir === 1 ? '▲' : '▼') : ''}</th>
-                                <th id="sort-mtime">Modified ${this.sortBy === 'mtime' ? (this.sortDir === 1 ? '▲' : '▼') : ''}</th>
+                                ${columns.showSize ? `<th style="text-align:right;" id="sort-size">Size ${this.sortBy === 'size' ? (this.sortDir === 1 ? '▲' : '▼') : ''}</th>` : ''}
+                                ${columns.showDateCreated ? `<th id="sort-ctime">Created ${this.sortBy === 'ctime' ? (this.sortDir === 1 ? '▲' : '▼') : ''}</th>` : ''}
+                                ${columns.showDateModified ? `<th id="sort-mtime">Modified ${this.sortBy === 'mtime' ? (this.sortDir === 1 ? '▲' : '▼') : ''}</th>` : ''}
                             </tr>
                         </thead>
                         <tbody>
-                            ${rows || `<tr><td colspan="5" style="color:var(--vscode-descriptionForeground);text-align:center;">No files/folders</td></tr>`}
+                            ${rowsHtml || `<tr><td colspan="${colCount}" style="color:var(--vscode-descriptionForeground);text-align:center;">No files/folders</td></tr>`}
                         </tbody>
                     </table>
                 </div>
