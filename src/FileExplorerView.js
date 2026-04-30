@@ -322,8 +322,30 @@ class FileExplorerViewProvider {
                 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdi/font@7.4.47/css/materialdesignicons.min.css">
                 <link rel="stylesheet" href="${styleUri}">
                 <style>
-                    /* Basic styling for VS Code theme integration */
-
+                    body { overflow-x: hidden; }
+                    table { table-layout: fixed; width: 100%; border-collapse: collapse; }
+                    th { overflow: visible; }
+                    td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+                    th.resizable { position: relative; }
+                    .resize-handle {
+                        position: absolute;
+                        right: 0;
+                        top: 0;
+                        bottom: 0;
+                        width: 1px;
+                        background: var(--vscode-panel-border, #888);
+                        cursor: col-resize;
+                        z-index: 1;
+                    }
+                    .resize-handle:hover,
+                    .resize-handle.active {
+                        width: 4px;
+                        margin-left: -1.5px;
+                        background: var(--vscode-sash-hoverBorder, #007fd4);
+                    }
+                    body.resizing { cursor: col-resize !important; user-select: none; }
+                    body.resizing table { pointer-events: none; }
+                    th.resizable:hover { background-color: var(--vscode-list-hoverBackground); }
                 </style>
             </head>
             <body>
@@ -335,11 +357,11 @@ class FileExplorerViewProvider {
                     <table>
                         <thead>
                             <tr>
-                                <th></th>
-                                <th id="sort-name">Name ${this.sortBy === 'name' ? (this.sortDir === 1 ? '▲' : '▼') : ''}</th>
-                                ${columns.showSize ? `<th style="text-align:right;" id="sort-size">Size ${this.sortBy === 'size' ? (this.sortDir === 1 ? '▲' : '▼') : ''}</th>` : ''}
-                                ${columns.showDateCreated ? `<th id="sort-ctime">Created ${this.sortBy === 'ctime' ? (this.sortDir === 1 ? '▲' : '▼') : ''}</th>` : ''}
-                                ${columns.showDateModified ? `<th id="sort-mtime">Modified ${this.sortBy === 'mtime' ? (this.sortDir === 1 ? '▲' : '▼') : ''}</th>` : ''}
+                                <th style="width:28px;"></th>
+                                <th class="resizable" data-column="name" id="sort-name">Name ${this.sortBy === 'name' ? (this.sortDir === 1 ? '▲' : '▼') : ''}<div class="resize-handle"></div></th>
+                                ${columns.showSize ? `<th class="resizable" data-column="size" style="text-align:right;" id="sort-size">Size ${this.sortBy === 'size' ? (this.sortDir === 1 ? '▲' : '▼') : ''}<div class="resize-handle"></div></th>` : ''}
+                                ${columns.showDateCreated ? `<th class="resizable" data-column="ctime" id="sort-ctime">Created ${this.sortBy === 'ctime' ? (this.sortDir === 1 ? '▲' : '▼') : ''}<div class="resize-handle"></div></th>` : ''}
+                                ${columns.showDateModified ? `<th class="resizable" data-column="mtime" id="sort-mtime">Modified ${this.sortBy === 'mtime' ? (this.sortDir === 1 ? '▲' : '▼') : ''}<div class="resize-handle"></div></th>` : ''}
                             </tr>
                         </thead>
                         <tbody>
