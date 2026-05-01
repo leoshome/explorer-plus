@@ -159,6 +159,15 @@ class FileExplorerViewProvider {
                         vscode.window.showErrorMessage(`Could not open file: ${error.message}`);
                     }
                     break;
+                case 'openFileTab':
+                    // Open the file in a new tab in the current editor group (middle-click behavior)
+                    try {
+                        const document = await vscode.workspace.openTextDocument(msg.path);
+                        await vscode.window.showTextDocument(document, { preview: false });
+                    } catch (error) {
+                        vscode.window.showErrorMessage(`Could not open file: ${error.message}`);
+                    }
+                    break;
                 case 'goUp':
                     // Navigate up to the parent directory
                     if (this.root) {

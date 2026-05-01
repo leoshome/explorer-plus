@@ -44,22 +44,37 @@
 
     // Event listener for clicking on file/folder rows
     document.querySelectorAll('tr.row').forEach(row => {
-        row.addEventListener('click', () => {
+        // Use mousedown to detect which mouse button was pressed
+        row.addEventListener('mousedown', (e) => {
             const path = row.dataset.path; // Get the full path from data-path attribute
             const isFolder = row.classList.contains('folder-row'); // Check if it's a folder
 
-            if (isFolder) {
-                // If it's a folder, send 'openFolder' command
-                vscode.postMessage({
-                    command: 'openFolder',
-                    path: path
-                });
-            } else {
-                // If it's a file, send 'openFile' command
-                vscode.postMessage({
-                    command: 'openFile',
-                    path: path
-                });
+            // Middle mouse button (button === 1)
+            if (e.button === 1) {
+                e.preventDefault(); // Prevent auto-scroll behavior
+                if (!isFolder) {
+                    // Open file in a new tab in the current editor group
+                    vscode.postMessage({
+                        command: 'openFileTab',
+                        path: path
+                    });
+                }
+                return;
+            }
+
+            // Left mouse button (button === 0) - existing behavior
+            if (e.button === 0) {
+                if (isFolder) {
+                    vscode.postMessage({
+                        command: 'openFolder',
+                        path: path
+                    });
+                } else {
+                    vscode.postMessage({
+                        command: 'openFile',
+                        path: path
+                    });
+                }
             }
         });
     });
