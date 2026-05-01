@@ -1,6 +1,6 @@
 const vscode = require('vscode');
 const path = require('path');
-const { getFolderSizeSync, formatSize, formatDate } = require('./utils/fileUtils');
+const { getFolderSizeSync, formatSize, formatDate, formatDateCompact, formatDateRelative } = require('./utils/fileUtils');
 
 // Get column visibility settings
 function getColumnSettings() {
@@ -42,6 +42,7 @@ class FileExplorerViewProvider {
         vscode.commands.executeCommand('setContext', 'explorerPlus.showSize', config.get('showSize', true));
         vscode.commands.executeCommand('setContext', 'explorerPlus.showDateCreated', config.get('showDateCreated', true));
         vscode.commands.executeCommand('setContext', 'explorerPlus.showDateModified', config.get('showDateModified', true));
+        vscode.commands.executeCommand('setContext', 'explorerPlus.dateFormat', config.get('dateFormat', 'full'));
     }
 
     /**
@@ -53,6 +54,32 @@ class FileExplorerViewProvider {
     _setColumnVisibility(key, visible) {
         const config = vscode.workspace.getConfiguration('explorerPlus');
         config.update(key, visible, vscode.ConfigurationTarget.Global);
+        this._updateContextKeys();
+        this._render();
+    }
+
+    /**
+     * Cycle the date format: full → compact → relative → full.
+     * @private
+     */
+    _cycleDateFormat() {
+        const config = vscode.workspace.getConfiguration('explorerPlus');
+        const order = ['full', 'compact', 'relative'];
+        const current = config.get('dateFormat', 'full');
+        const nextIndex = (order.indexOf(current) + 1) % order.length;
+        config.update('dateFormat', order[nextIndex], vscode.ConfigurationTarget.Global);
+        this._updateContextKeys();
+        this._render();
+    }
+
+    /**
+     * Set a specific date format.
+     * @param {string} format The format to set ('full', 'compact', or 'relative').
+     * @private
+     */
+    _setDateFormat(format) {
+        const config = vscode.workspace.getConfiguration('explorerPlus');
+        config.update('dateFormat', format, vscode.ConfigurationTarget.Global);
         this._updateContextKeys();
         this._render();
     }
@@ -81,7 +108,13 @@ class FileExplorerViewProvider {
             vscode.commands.registerCommand('explorerPlus.hideDateCreated', () => this._setColumnVisibility('showDateCreated', false)),
             vscode.commands.registerCommand('explorerPlus.showDateCreated', () => this._setColumnVisibility('showDateCreated', true)),
             vscode.commands.registerCommand('explorerPlus.hideDateModified', () => this._setColumnVisibility('showDateModified', false)),
-            vscode.commands.registerCommand('explorerPlus.showDateModified', () => this._setColumnVisibility('showDateModified', true))
+            vscode.commands.registerCommand('explorerPlus.showDateModified', () => this._setColumnVisibility('showDateModified', true)),
+            vscode.commands.registerCommand('explorerPlus.dateFormatFullActive', () => {}),
+            vscode.commands.registerCommand('explorerPlus.dateFormatFull', () => this._setDateFormat('full')),
+            vscode.commands.registerCommand('explorerPlus.dateFormatCompactActive', () => {}),
+            vscode.commands.registerCommand('explorerPlus.dateFormatCompact', () => this._setDateFormat('compact')),
+            vscode.commands.registerCommand('explorerPlus.dateFormatRelativeActive', () => {}),
+            vscode.commands.registerCommand('explorerPlus.dateFormatRelative', () => this._setDateFormat('relative'))
         );
 
         // Listen for configuration changes
@@ -167,6 +200,13 @@ class FileExplorerViewProvider {
         // Get column visibility settings
         const columns = getColumnSettings();
 
+        // Get date format setting
+        const config = vscode.workspace.getConfiguration('explorerPlus');
+        const dateFormat = config.get('dateFormat', 'full');
+        const dateFormatter = dateFormat === 'compact' ? formatDateCompact
+                           : dateFormat === 'relative' ? formatDateRelative
+                           : formatDate;
+
         const rootPath = this.root || workspaceFolders[0].uri.fsPath;
         let entries = [];
         try {
@@ -239,8 +279,8 @@ class FileExplorerViewProvider {
                 </td>
                 <td>${e.name}</td>
                 ${columns.showSize ? `<td style="text-align:right;">${e.size ? formatSize(e.size) : '-'}</td>` : ''}
-                ${columns.showDateCreated ? `<td>${e.ctime ? formatDate(e.ctime) : ''}</td>` : ''}
-                ${columns.showDateModified ? `<td>${e.mtime ? formatDate(e.mtime) : ''}</td>` : ''}
+                ${columns.showDateCreated ? `<td>${e.ctime ? dateFormatter(e.ctime) : ''}</td>` : ''}
+                ${columns.showDateModified ? `<td>${e.mtime ? dateFormatter(e.mtime) : ''}</td>` : ''}
             </tr>
         `).join('');
 
